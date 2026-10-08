@@ -1,0 +1,50 @@
+services:
+  # FastAPI REST API Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: feedback_intelligence_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=sqlite:////app/data/course_feedback.db
+    volumes:
+      - feedback_storage:/app/data
+    networks:
+      - feedback_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  # Streamlit Interactive Analytics Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: feedback_intelligence_dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000/api/v1
+      - DATABASE_URL=sqlite:////app/data/course_feedback.db
+    volumes:
+      - feedback_storage:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - feedback_network
+
+volumes:
+  feedback_storage:
+    driver: local
+
+networks:
+  feedback_network:
+    driver: bridge
